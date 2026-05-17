@@ -1,0 +1,883 @@
+import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
+import { 
+  Dumbbell, Calendar as CalendarIcon, Clock, ChevronRight, User, 
+  Activity, CheckCircle, XCircle, AlertCircle, LogOut, Menu, X,
+  Search, Filter, Download, ArrowRight, Star, Shield, Zap, TrendingUp,
+  Settings, CreditCard, ChevronLeft, ChevronRight as ChevronRightIcon
+} from 'lucide-react';
+
+
+// --- MOCK DATA & INITIAL STATE ---
+const MOCK_USERS = [
+  { id: 'admin1', role: 'admin', name: 'Coach Bugar', email: 'admin@belajarbugar.com', password: 'password' },
+  { id: 'client1', role: 'client', name: 'Andi Saputra', email: 'andi@example.com', password: 'password', phone: '08123456789' }
+];
+
+const INITIAL_BOOKINGS = [
+  { id: 'b1', clientId: 'client1', clientName: 'Andi Saputra', date: new Date().toISOString().split('T')[0], time: '10:00', type: 'Muscle Gain', duration: '60', status: 'Approved', notes: 'Fokus upper body' },
+  { id: 'b2', clientId: 'client1', clientName: 'Andi Saputra', date: new Date(Date.now() + 86400000).toISOString().split('T')[0], time: '14:00', type: 'Fat Loss', duration: '90', status: 'Pending', notes: '' }
+];
+
+const EXERCISE_TYPES = ['Fat Loss', 'Muscle Gain', 'Cardio', 'Strength Training', 'Custom Coaching'];
+const DURATIONS = ['60', '90', '120']; // in minutes
+
+// --- CONTEXT SETUP ---
+const AppContext = createContext();
+
+const useAppContext = () => useContext(AppContext);
+
+
+const AppProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [view, setView] = useState('LANDING'); // LANDING, LOGIN, REGISTER, DASHBOARD
+  const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
+  const [users, setUsers] = useState(MOCK_USERS);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const login = (email, password) => {
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) {
+      setCurrentUser(user);
+      setView('DASHBOARD');
+      showToast(`Welcome back, ${user.name}!`);
+    } else {
+      showToast('Invalid email or password', 'error');
+    }
+  };
+
+  const register = (data) => {
+    const newUser = { id: `client${Date.now()}`, role: 'client', ...data };
+    setUsers([...users, newUser]);
+    setCurrentUser(newUser);
+    setView('DASHBOARD');
+    showToast('Registration successful!');
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setView('LANDING');
+    showToast('Logged out successfully');
+  };
+
+  const addBooking = (bookingData) => {
+    const newBooking = {
+      id: `b${Date.now()}`,
+      clientId: currentUser.id,
+      clientName: currentUser.name,
+      status: 'Pending',
+      ...bookingData
+    };
+    setBookings([...bookings, newBooking]);
+    showToast('Booking successful! Waiting for approval.');
+  };
+
+  const updateBookingStatus = (id, newStatus) => {
+    setBookings(bookings.map(b => b.id === id ? { ...b, status: newStatus } : b));
+    showToast(`Booking ${newStatus.toLowerCase()}`);
+  };
+
+  return (
+    <AppContext.Provider value={{
+      currentUser, view, setView, bookings, login, register, logout, 
+      addBooking, updateBookingStatus, showToast, toast, setBookings
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+
+// --- SHARED UI COMPONENTS ---
+const Toast = () => {
+  const { toast } = useAppContext();
+  if (!toast) return null;
+  const isError = toast.type === 'error';
+  return (
+    <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 flex items-center space-x-2 ${isError ? 'bg-red-500/90 text-white' : 'bg-lime-500/90 text-zinc-950 font-bold'}`}>
+      {isError ? <XCircle size={20} /> : <CheckCircle size={20} />}
+      <span>{toast.message}</span>
+    </div>
+  );
+};
+
+const Button = ({ children, onClick, variant = 'primary', className = '', type = 'button', disabled = false }) => {
+  const baseStyle = "px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed";
+  const variants = {
+    primary: "bg-lime-400 hover:bg-lime-300 text-zinc-950 shadow-[0_0_15px_rgba(163,230,53,0.3)] hover:shadow-[0_0_25px_rgba(163,230,53,0.5)]",
+    secondary: "bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700",
+    outline: "border-2 border-lime-400 text-lime-400 hover:bg-lime-400 hover:text-zinc-950",
+    danger: "bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50"
+  };
+  return (
+    <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>
+      {children}
+    </button>
+  );
+};
+
+const Card = ({ children, className = '' }) => (
+  <div className={`bg-zinc-900/50 backdrop-blur-md border border-zinc-800/50 rounded-2xl p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+const Input = ({ label, ...props }) => (
+  <div className="mb-4">
+    <label className="block text-sm font-medium text-zinc-400 mb-2">{label}</label>
+    <input 
+      {...props} 
+      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-lime-400 focus:ring-1 focus:ring-lime-400 transition-all placeholder-zinc-600"
+    />
+  </div>
+);
+
+const StatusBadge = ({ status }) => {
+  const styles = {
+    Pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+    Approved: 'bg-lime-500/20 text-lime-400 border-lime-500/50',
+    Cancelled: 'bg-red-500/20 text-red-400 border-red-500/50',
+    Completed: 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[status]}`}>
+      {status}
+    </span>
+  );
+};
+
+
+// --- LANDING PAGE ---
+const LandingPage = () => {
+  const { setView } = useAppContext();
+  
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white overflow-x-hidden selection:bg-lime-400 selection:text-zinc-950">
+      {/* Navbar */}
+      <nav className="fixed w-full z-40 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Dumbbell className="text-lime-400" size={32} />
+            <span className="text-2xl font-black tracking-tighter">BELAJAR BUGAR</span>
+          </div>
+          <div className="hidden md:flex items-center space-x-8 text-sm font-medium">
+            <a href="#services" className="hover:text-lime-400 transition-colors">Layanan</a>
+            <a href="#trainer" className="hover:text-lime-400 transition-colors">Coach</a>
+            <a href="#testimonials" className="hover:text-lime-400 transition-colors">Testimoni</a>
+            <Button variant="outline" onClick={() => setView('LOGIN')} className="px-4 py-2">Log In</Button>
+            <Button onClick={() => setView('REGISTER')} className="px-4 py-2">Join Now</Button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-32 pb-20 px-6 relative">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-lime-500/10 rounded-full blur-3xl -z-10"></div>
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+          <div className="space-y-8">
+            <div className="inline-flex items-center space-x-2 bg-zinc-900 rounded-full px-4 py-2 border border-zinc-800">
+              <Zap size={16} className="text-lime-400" />
+              <span className="text-sm font-medium text-zinc-300">Transformasi Dimulai Dari Sini</span>
+            </div>
+            <h1 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tight">
+              ELEVATE YOUR <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-lime-400 to-emerald-600">FITNESS JOURNEY</span>
+            </h1>
+            <p className="text-lg text-zinc-400 max-w-lg leading-relaxed">
+              Platform booking personal trainer eksklusif. Jadwalkan sesi latihanmu, capai target fitness, dan jadilah versi terbaik dirimu bersama coach profesional.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Button onClick={() => setView('REGISTER')} className="text-lg px-8 py-4">Mulai Booking Sekarang</Button>
+              <Button variant="secondary" onClick={() => setView('LOGIN')} className="text-lg px-8 py-4">Pelajari Lebih Lanjut</Button>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-tr from-lime-500/20 to-transparent rounded-3xl blur-2xl -z-10"></div>
+            <img 
+              src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop" 
+              alt="Fitness Athlete" 
+              className="rounded-3xl object-cover h-[600px] w-full border border-zinc-800/50 shadow-2xl"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Stats/Features */}
+      <section id="services" className="py-20 bg-zinc-900/30 border-y border-zinc-800/50">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+          {[
+            { icon: <Activity />, title: "Custom Programs", desc: "Sesuai tujuan spesifikmu" },
+            { icon: <CalendarIcon />, title: "Flexible Booking", desc: "Atur jadwal sesukamu" },
+            { icon: <TrendingUp />, title: "Track Progress", desc: "Pantau perkembangan rutin" },
+            { icon: <Shield />, title: "Certified Coach", desc: "100% profesional" }
+          ].map((item, i) => (
+            <div key={i} className="flex flex-col items-center text-center p-6 bg-zinc-950/50 rounded-2xl border border-zinc-800/50 hover:border-lime-400/50 transition-colors">
+              <div className="w-14 h-14 bg-lime-400/10 rounded-xl flex items-center justify-center text-lime-400 mb-4">
+                {item.icon}
+              </div>
+              <h3 className="font-bold text-lg mb-2">{item.title}</h3>
+              <p className="text-zinc-400 text-sm">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+
+// --- AUTHENTICATION ---
+const AuthPage = ({ mode = 'login' }) => {
+  const { setView, login, register } = useAppContext();
+  const [isLogin, setIsLogin] = useState(mode === 'login');
+  
+  // Form states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (isLogin) {
+      login(email, password);
+    } else {
+      register({ email, password, name, phone });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Decorative background */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-lime-500/10 blur-[100px] rounded-full"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[100px] rounded-full"></div>
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-2xl mb-4">
+            <Dumbbell className="text-lime-400" size={32} />
+          </div>
+          <h2 className="text-3xl font-black text-white tracking-tight">{isLogin ? 'WELCOME BACK' : 'JOIN THE CLUB'}</h2>
+          <p className="text-zinc-400 mt-2">
+            {isLogin ? 'Masuk ke akun untuk mengatur jadwalmu.' : 'Daftar sekarang dan mulai transformasimu.'}
+          </p>
+        </div>
+
+        <Card>
+          <form onSubmit={handleSubmit}>
+            {!isLogin && (
+              <>
+                <Input label="Nama Lengkap" type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="John Doe" />
+                <Input label="Nomor WhatsApp" type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="0812..." />
+              </>
+            )}
+            <Input label="Email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" />
+            <Input label="Password" type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+            
+            {isLogin && (
+              <div className="flex justify-end mb-4">
+                <button type="button" className="text-sm text-lime-400 hover:text-lime-300">Forgot Password?</button>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full mb-4">
+              {isLogin ? 'Log In' : 'Register Account'}
+            </Button>
+          </form>
+
+          {/* Quick Demo Login Buttons */}
+          <div className="mt-6 pt-6 border-t border-zinc-800 text-center">
+            <p className="text-xs text-zinc-500 mb-4 uppercase tracking-widest">Demo Access</p>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => login('admin@belajarbugar.com', 'password')} className="flex-1 text-xs py-2">
+                Log in as PT/Admin
+              </Button>
+              <Button variant="secondary" onClick={() => login('andi@example.com', 'password')} className="flex-1 text-xs py-2">
+                Log in as Client
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <p className="text-center mt-6 text-zinc-400">
+          {isLogin ? "Belum punya akun? " : "Sudah punya akun? "}
+          <button onClick={() => setIsLogin(!isLogin)} className="text-lime-400 font-bold hover:underline">
+            {isLogin ? 'Daftar disini' : 'Masuk disini'}
+          </button>
+        </p>
+        
+        <button onClick={() => setView('LANDING')} className="absolute top-4 left-4 md:-left-20 md:top-0 text-zinc-500 hover:text-white flex items-center">
+           <ChevronLeft size={20} /> Back
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+// --- CALENDAR COMPONENT ---
+const BookingCalendar = ({ onSelectDate, selectedDate, disabledDates = [] }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const getDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const daysInMonth = getDaysInMonth(currentMonth);
+  const firstDay = getFirstDayOfMonth(currentMonth);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const blanks = Array.from({ length: firstDay === 0 ? 6 : firstDay - 1 }, (_, i) => i);
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+
+  const isToday = (day) => {
+    const today = new Date();
+    return day === today.getDate() && currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear();
+  };
+
+  const isSelected = (day) => {
+    if (!selectedDate) return false;
+    const date = new Date(selectedDate);
+    return day === date.getDate() && currentMonth.getMonth() === date.getMonth() && currentMonth.getFullYear() === date.getFullYear();
+  };
+
+  const isPast = (day) => {
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={handlePrevMonth} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400"><ChevronLeft size={20}/></button>
+        <span className="font-bold text-lg">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</span>
+        <button onClick={handleNextMonth} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400"><ChevronRightIcon size={20}/></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <div key={d} className="text-xs font-bold text-zinc-500 py-2">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {blanks.map(b => <div key={`blank-${b}`} className="p-2"></div>)}
+        {days.map(day => {
+          const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const disabled = isPast(day) || disabledDates.includes(dateStr);
+          
+          return (
+            <button
+              key={day}
+              disabled={disabled}
+              onClick={() => onSelectDate(dateStr)}
+              className={`
+                p-2 rounded-lg text-sm font-medium transition-all
+                ${isSelected(day) ? 'bg-lime-400 text-zinc-950 font-bold shadow-[0_0_10px_rgba(163,230,53,0.5)]' : 'hover:bg-zinc-800'}
+                ${isToday(day) && !isSelected(day) ? 'text-lime-400 border border-lime-400/30' : ''}
+                ${disabled ? 'opacity-20 cursor-not-allowed hover:bg-transparent' : 'text-zinc-300'}
+              `}
+            >
+              {day}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  );
+};
+
+
+// --- CLIENT DASHBOARD ---
+const ClientDashboard = () => {
+  const { currentUser, logout, bookings, addBooking } = useAppContext();
+  const [activeTab, setActiveTab] = useState('overview'); // overview, book, history
+
+  // Booking Form State
+  const [bookDate, setBookDate] = useState('');
+  const [bookTime, setBookTime] = useState('');
+  const [bookType, setBookType] = useState('Fat Loss');
+  const [bookDuration, setBookDuration] = useState('60');
+  const [bookNotes, setBookNotes] = useState('');
+  const [bookingStep, setBookingStep] = useState(1);
+
+  const myBookings = bookings.filter(b => b.clientId === currentUser.id).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const upcomingBooking = myBookings.find(b => new Date(`${b.date}T${b.time}`) > new Date() && b.status !== 'Cancelled');
+
+  const availableTimes = ['08:00', '09:00', '10:00', '14:00', '15:00', '16:00', '19:00'];
+  // Logic to disable already booked times for selected date
+  const bookedTimesOnDate = bookings.filter(b => b.date === bookDate && b.status !== 'Cancelled').map(b => b.time);
+
+  const handleBookSubmit = () => {
+    addBooking({
+      date: bookDate,
+      time: bookTime,
+      type: bookType,
+      duration: bookDuration,
+      notes: bookNotes
+    });
+    // Reset
+    setActiveTab('history');
+    setBookingStep(1);
+    setBookDate('');
+    setBookTime('');
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col md:flex-row">
+      {/* Sidebar Mobile/Desktop */}
+      <aside className="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+        <div className="p-6 border-b border-zinc-800 flex items-center space-x-2">
+          <Dumbbell className="text-lime-400" />
+          <span className="font-black tracking-tight">BELAJAR BUGAR</span>
+        </div>
+        <div className="p-4 flex-1 space-y-2">
+          {[
+            { id: 'overview', icon: <Activity size={20} />, label: 'Overview' },
+            { id: 'book', icon: <CalendarIcon size={20} />, label: 'Book Session' },
+            { id: 'history', icon: <Clock size={20} />, label: 'History' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${activeTab === tab.id ? 'bg-lime-500/10 text-lime-400 font-bold' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="p-4 border-t border-zinc-800">
+          <button onClick={logout} className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+        <header className="mb-10">
+          <h1 className="text-3xl font-black">Hello, {currentUser.name}!</h1>
+          <p className="text-zinc-400">Siap untuk berlatih hari ini?</p>
+        </header>
+
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            <Card className="bg-gradient-to-br from-zinc-900 to-zinc-950 border-lime-500/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <Dumbbell size={100} />
+              </div>
+              <h2 className="text-xl font-bold mb-6 text-lime-400">Upcoming Session</h2>
+              {upcomingBooking ? (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-3xl font-black">{upcomingBooking.date}</p>
+                    <p className="text-zinc-400 mt-1 flex items-center"><Clock size={16} className="mr-2"/> {upcomingBooking.time} WIB ({upcomingBooking.duration} Min)</p>
+                  </div>
+                  <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50">
+                    <p className="font-bold text-lg">{upcomingBooking.type}</p>
+                    <p className="text-sm text-zinc-400">Coach Bugar</p>
+                  </div>
+                  <StatusBadge status={upcomingBooking.status} />
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-zinc-400 mb-4">Belum ada jadwal latihan mendatang.</p>
+                  <Button onClick={() => setActiveTab('book')}>Book Session Sekarang</Button>
+                </div>
+              )}
+            </Card>
+
+            <div className="grid md:grid-cols-3 gap-6">
+               <Card>
+                 <h3 className="text-zinc-400 text-sm mb-2">Total Sesi</h3>
+                 <p className="text-4xl font-black">{myBookings.filter(b => b.status === 'Completed').length}</p>
+               </Card>
+               <Card>
+                 <h3 className="text-zinc-400 text-sm mb-2">Target Bulan Ini</h3>
+                 <div className="w-full bg-zinc-800 rounded-full h-4 mt-4">
+                    <div className="bg-lime-400 h-4 rounded-full" style={{ width: '45%' }}></div>
+                 </div>
+                 <p className="text-xs text-right mt-2 text-lime-400">45% Achieved</p>
+               </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'book' && (
+          <div className="max-w-3xl">
+            <h2 className="text-2xl font-bold mb-6 flex items-center">
+              <CalendarIcon className="mr-3 text-lime-400" /> Book New Session
+            </h2>
+            
+            <Card>
+              {/* Stepper */}
+              <div className="flex space-x-2 mb-8">
+                {[1, 2, 3].map(step => (
+                  <div key={step} className={`flex-1 h-2 rounded-full ${bookingStep >= step ? 'bg-lime-400' : 'bg-zinc-800'}`}></div>
+                ))}
+              </div>
+
+              {bookingStep === 1 && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg">Pilih Tanggal & Waktu</h3>
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <BookingCalendar onSelectDate={setBookDate} selectedDate={bookDate} />
+                    
+                    <div>
+                      <h4 className="font-medium text-zinc-400 mb-4">Waktu Tersedia</h4>
+                      {!bookDate ? (
+                         <p className="text-sm text-zinc-500 bg-zinc-950 p-4 rounded-xl border border-zinc-800">Pilih tanggal terlebih dahulu</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          {availableTimes.map(time => {
+                            const isBooked = bookedTimesOnDate.includes(time);
+                            return (
+                              <button
+                                key={time}
+                                disabled={isBooked}
+                                onClick={() => setBookTime(time)}
+                                className={`py-3 rounded-xl border font-medium transition-all ${isBooked ? 'bg-zinc-950 border-zinc-800 text-zinc-600 cursor-not-allowed' : bookTime === time ? 'bg-lime-400 border-lime-400 text-zinc-950 shadow-[0_0_15px_rgba(163,230,53,0.3)]' : 'bg-zinc-900 border-zinc-700 hover:border-lime-400 text-zinc-300'}`}
+                              >
+                                {time} {isBooked && '(Penuh)'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-4">
+                    <Button onClick={() => setBookingStep(2)} disabled={!bookDate || !bookTime}>Lanjut</Button>
+                  </div>
+                </div>
+              )}
+
+              {bookingStep === 2 && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg">Detail Latihan</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Jenis Latihan</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {EXERCISE_TYPES.map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setBookType(type)}
+                          className={`p-3 rounded-xl border text-left transition-all ${bookType === type ? 'bg-lime-500/10 border-lime-400 text-lime-400' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600'}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Durasi (Menit)</label>
+                    <div className="flex space-x-3">
+                      {DURATIONS.map(dur => (
+                         <button
+                         key={dur}
+                         onClick={() => setBookDuration(dur)}
+                         className={`px-6 py-2 rounded-xl border transition-all ${bookDuration === dur ? 'bg-lime-500/10 border-lime-400 text-lime-400' : 'bg-zinc-900 border-zinc-800'}`}
+                       >
+                         {dur}
+                       </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Input 
+                    label="Catatan / Target Spesifik (Opsional)" 
+                    placeholder="Contoh: Ingin fokus deadlift" 
+                    value={bookNotes} 
+                    onChange={e => setBookNotes(e.target.value)} 
+                  />
+
+                  <div className="flex justify-between pt-4">
+                    <Button variant="secondary" onClick={() => setBookingStep(1)}>Kembali</Button>
+                    <Button onClick={() => setBookingStep(3)}>Review</Button>
+                  </div>
+                </div>
+              )}
+
+              {bookingStep === 3 && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg">Konfirmasi Booking</h3>
+                  <div className="bg-zinc-950 p-6 rounded-xl border border-zinc-800 space-y-4">
+                    <div className="flex justify-between border-b border-zinc-800 pb-4">
+                      <span className="text-zinc-400">Coach</span>
+                      <span className="font-bold">Coach Bugar (PT)</span>
+                    </div>
+                    <div className="flex justify-between border-b border-zinc-800 pb-4">
+                      <span className="text-zinc-400">Jadwal</span>
+                      <span className="font-bold text-lime-400">{bookDate} | {bookTime} WIB</span>
+                    </div>
+                    <div className="flex justify-between border-b border-zinc-800 pb-4">
+                      <span className="text-zinc-400">Program</span>
+                      <span className="font-bold">{bookType} ({bookDuration} Min)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-400">Nama Client</span>
+                      <span className="font-bold">{currentUser.name}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-start space-x-3">
+                    <AlertCircle className="text-blue-400 shrink-0 mt-0.5" size={18} />
+                    <p className="text-sm text-blue-200">Setelah konfirmasi, booking akan menunggu persetujuan Coach. Anda akan menerima notifikasi jika disetujui.</p>
+                  </div>
+
+                  <div className="flex justify-between pt-4">
+                    <Button variant="secondary" onClick={() => setBookingStep(2)}>Kembali</Button>
+                    <Button onClick={handleBookSubmit}>Konfirmasi & Book</Button>
+                  </div>
+                </div>
+              )}
+
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Riwayat Booking</h2>
+            <Card className="p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-zinc-950/50 border-b border-zinc-800">
+                    <tr>
+                      <th className="p-4 text-zinc-400 font-medium">Tanggal</th>
+                      <th className="p-4 text-zinc-400 font-medium">Waktu</th>
+                      <th className="p-4 text-zinc-400 font-medium">Program</th>
+                      <th className="p-4 text-zinc-400 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/50">
+                    {myBookings.length === 0 ? (
+                      <tr><td colSpan="4" className="p-8 text-center text-zinc-500">Belum ada riwayat booking</td></tr>
+                    ) : (
+                      myBookings.map(b => (
+                        <tr key={b.id} className="hover:bg-zinc-800/20 transition-colors">
+                          <td className="p-4 font-medium">{b.date}</td>
+                          <td className="p-4 text-zinc-300">{b.time}</td>
+                          <td className="p-4 text-zinc-300">{b.type}</td>
+                          <td className="p-4"><StatusBadge status={b.status} /></td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+
+// --- ADMIN / PT DASHBOARD ---
+const AdminDashboard = () => {
+  const { currentUser, logout, bookings, updateBookingStatus } = useAppContext();
+  const [activeTab, setActiveTab] = useState('requests');
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  const stats = {
+    total: bookings.length,
+    pending: bookings.filter(b => b.status === 'Pending').length,
+    approved: bookings.filter(b => b.status === 'Approved').length,
+    revenueMock: bookings.filter(b => b.status === 'Completed').length * 250000
+  };
+
+  const filteredBookings = bookings.filter(b => filterStatus === 'All' ? true : b.status === filterStatus).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col md:flex-row">
+       <aside className="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+        <div className="p-6 border-b border-zinc-800">
+          <div className="flex items-center space-x-2 mb-2">
+            <Dumbbell className="text-lime-400" />
+            <span className="font-black tracking-tight">PT DASHBOARD</span>
+          </div>
+          <p className="text-xs text-zinc-400">Coach: {currentUser.name}</p>
+        </div>
+        <div className="p-4 flex-1 space-y-2">
+          {[
+            { id: 'requests', icon: <Activity size={20} />, label: 'Bookings', count: stats.pending },
+            { id: 'calendar', icon: <CalendarIcon size={20} />, label: 'Schedule' },
+            { id: 'clients', icon: <User size={20} />, label: 'Clients' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${activeTab === tab.id ? 'bg-lime-500/10 text-lime-400 font-bold' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+            >
+              <div className="flex items-center space-x-3">
+                {tab.icon}
+                <span>{tab.label}</span>
+              </div>
+              {tab.count > 0 && <span className="bg-lime-500 text-zinc-950 text-xs font-bold px-2 py-0.5 rounded-full">{tab.count}</span>}
+            </button>
+          ))}
+        </div>
+        <div className="p-4 border-t border-zinc-800">
+          <button onClick={logout} className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-black">Management Dashboard</h1>
+            <p className="text-zinc-400">Kelola jadwal dan klien Anda.</p>
+          </div>
+          <Button variant="outline" className="hidden md:flex"><Download size={16} className="mr-2"/> Export Data</Button>
+        </header>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+           <Card className="p-4">
+             <p className="text-zinc-400 text-sm mb-1">Total Bookings</p>
+             <p className="text-3xl font-black">{stats.total}</p>
+           </Card>
+           <Card className="p-4 border-yellow-500/30">
+             <p className="text-zinc-400 text-sm mb-1">Pending Requests</p>
+             <p className="text-3xl font-black text-yellow-400">{stats.pending}</p>
+           </Card>
+           <Card className="p-4 border-lime-500/30">
+             <p className="text-zinc-400 text-sm mb-1">Upcoming Sessions</p>
+             <p className="text-3xl font-black text-lime-400">{stats.approved}</p>
+           </Card>
+           <Card className="p-4">
+             <p className="text-zinc-400 text-sm mb-1">Est. Revenue</p>
+             <p className="text-2xl font-black">Rp {stats.revenueMock.toLocaleString()}</p>
+           </Card>
+        </div>
+
+        {activeTab === 'requests' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-xl border border-zinc-800">
+              <div className="flex space-x-2">
+                {['All', 'Pending', 'Approved', 'Cancelled'].map(s => (
+                  <button 
+                    key={s} 
+                    onClick={() => setFilterStatus(s)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${filterStatus === s ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500" />
+                <input type="text" placeholder="Search client..." className="bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-lime-400" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {filteredBookings.length === 0 ? (
+                <div className="text-center py-10 text-zinc-500">Tidak ada data booking.</div>
+              ) : (
+                filteredBookings.map(booking => (
+                  <Card key={booking.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-5 gap-4 hover:border-zinc-700 transition-colors">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-lg font-bold text-lime-400">
+                        {booking.clientName.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg">{booking.clientName}</h4>
+                        <div className="flex items-center text-zinc-400 text-sm mt-1 space-x-3">
+                          <span className="flex items-center"><CalendarIcon size={14} className="mr-1"/> {booking.date}</span>
+                          <span className="flex items-center"><Clock size={14} className="mr-1"/> {booking.time} ({booking.duration}m)</span>
+                        </div>
+                        <p className="text-sm text-zinc-500 mt-2"><span className="text-zinc-400">Program:</span> {booking.type}</p>
+                        {booking.notes && <p className="text-sm text-zinc-500 italic mt-1">"{booking.notes}"</p>}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-end space-y-3 w-full md:w-auto">
+                      <StatusBadge status={booking.status} />
+                      {booking.status === 'Pending' && (
+                        <div className="flex space-x-2 w-full justify-end">
+                          <Button variant="danger" onClick={() => updateBookingStatus(booking.id, 'Cancelled')} className="py-1.5 px-3 text-sm">Reject</Button>
+                          <Button onClick={() => updateBookingStatus(booking.id, 'Approved')} className="py-1.5 px-3 text-sm">Approve</Button>
+                        </div>
+                      )}
+                      {booking.status === 'Approved' && (
+                        <div className="flex space-x-2">
+                           <Button variant="secondary" onClick={() => updateBookingStatus(booking.id, 'Completed')} className="py-1.5 px-3 text-sm border-blue-500 text-blue-400 hover:bg-blue-500/10">Mark Completed</Button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'calendar' && (
+           <Card>
+             <h2 className="text-xl font-bold mb-4">Jadwal Minggu Ini</h2>
+             <p className="text-zinc-400 mb-6">Tampilan kalender admin (Simulasi). Fitur kalender penuh akan menampilkan grid per jam dari slot yang telah diapprove.</p>
+             <div className="space-y-3">
+               {bookings.filter(b => b.status === 'Approved').map(b => (
+                 <div key={b.id} className="bg-lime-500/10 border border-lime-500/20 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-lime-400">{b.date} - {b.time}</p>
+                      <p className="text-sm">{b.clientName} ({b.type})</p>
+                    </div>
+                 </div>
+               ))}
+             </div>
+           </Card>
+        )}
+      </main>
+    </div>
+  );
+};
+
+
+// --- MAIN ROUTER ---
+const AppRouter = () => {
+  const { view } = useAppContext();
+
+  switch (view) {
+    case 'LANDING': return <LandingPage />;
+    case 'LOGIN': return <AuthPage mode="login" />;
+    case 'REGISTER': return <AuthPage mode="register" />;
+    case 'DASHBOARD': return <DashboardSwitch />;
+    default: return <LandingPage />;
+  }
+};
+
+const DashboardSwitch = () => {
+  const { currentUser } = useAppContext();
+  if (!currentUser) return <LandingPage />;
+  return currentUser.role === 'admin' ? <AdminDashboard /> : <ClientDashboard />;
+};
+
+// --- ENTRY POINT ---
+export default function App() {
+  return (
+    <AppProvider>
+      <Toast />
+      <AppRouter />
+    </AppProvider>
+  );
+}
