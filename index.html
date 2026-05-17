@@ -20,7 +20,7 @@
                         neonHover: '#32e612',
                         darkBg: '#050505',
                         surface: '#121212',
-                        surfaceAlt: '#1e1e1e'
+                        surfaceAlt: '#1a1a1a'
                     },
                     animation: {
                         'float': 'float 3s ease-in-out infinite',
@@ -53,7 +53,7 @@
         ::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #39FF14; }
         
-        /* Glassmorphism utility */
+        /* Glassmorphism */
         .glass {
             background: rgba(18, 18, 18, 0.7);
             backdrop-filter: blur(16px);
@@ -67,36 +67,54 @@
             border: 1px solid rgba(57, 255, 20, 0.2);
         }
 
-        /* Inputs */
+        /* Form Inputs */
         input[type="date"]::-webkit-calendar-picker-indicator,
         input[type="time"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
             cursor: pointer;
         }
 
-        /* View Management */
+        /* View Router */
         .view-section { display: none; opacity: 0; }
         .view-section.active { display: block; animation: fadeIn 0.4s ease forwards; }
         .view-section.flex-active { display: flex; animation: fadeIn 0.4s ease forwards; }
-
-        /* Dashboard Tabs */
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.3s ease forwards; }
 
-        /* Toast */
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        /* Toast Animation */
         .toast-enter { transform: translateX(120%); opacity: 0; }
         .toast-enter-active { transform: translateX(0); opacity: 1; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     </style>
 </head>
 <body class="bg-darkBg text-gray-200 antialiased overflow-x-hidden min-h-screen flex flex-col selection:bg-neon selection:text-black">
 
-    <!-- Global Toast Container -->
+    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-24 right-4 z-[100] flex flex-col gap-3 pointer-events-none w-80"></div>
 
+    <!-- Custom Confirm Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+        <div class="glass w-full max-w-sm rounded-2xl p-6 relative transform transition-all scale-95 opacity-0 text-center" id="confirm-modal-content">
+            <div class="w-16 h-16 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-white">Konfirmasi</h3>
+            <p class="text-gray-400 text-sm mb-6" id="confirm-modal-msg">Apakah Anda yakin?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="App.ui.closeConfirm()" class="px-5 py-2.5 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 transition font-medium">Batal</button>
+                <button id="confirm-modal-btn" class="px-5 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition font-bold">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Reschedule Modal (Admin) -->
-    <div id="reschedule-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+    <div id="reschedule-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm px-4">
         <div class="glass w-full max-w-md rounded-2xl p-6 relative transform transition-all scale-95 opacity-0" id="reschedule-modal-content">
-            <button onclick="closeModal('reschedule-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            <button onclick="App.ui.closeModal('reschedule-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
             <h3 class="text-xl font-bold mb-1 text-white">Reschedule Sesi</h3>
             <p class="text-gray-400 text-sm mb-6" id="reschedule-client-name">Ubah jadwal client</p>
             
@@ -104,7 +122,7 @@
                 <input type="hidden" id="reschedule-booking-id">
                 <div>
                     <label class="block text-xs text-gray-400 mb-1">Tanggal Baru <span class="text-neon">*</span></label>
-                    <input type="date" id="reschedule-date" required onchange="updateRescheduleTimes()" class="w-full bg-surface border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-sm text-white">
+                    <input type="date" id="reschedule-date" required onchange="App.ui.updateRescheduleTimes()" class="w-full bg-surface border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-sm text-white">
                 </div>
                 <div>
                     <label class="block text-xs text-gray-400 mb-1">Jam Baru <span class="text-neon">*</span></label>
@@ -118,17 +136,26 @@
     </div>
 
     <!-- Booking Modal (Client) -->
-    <div id="booking-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+    <div id="booking-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm px-4">
         <div class="glass w-full max-w-lg rounded-2xl p-6 relative transform transition-all scale-95 opacity-0" id="booking-modal-content">
-            <button onclick="closeModal('booking-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            <button onclick="App.ui.closeModal('booking-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
             <h3 class="text-2xl font-bold mb-1 text-white">Book Session</h3>
             <p class="text-gray-400 text-sm mb-6">Pilih jadwal latihanmu dengan Personal Trainer.</p>
             
             <form id="booking-form" class="space-y-4">
+                <!-- Info Client (Auto-filled & Readonly for UX) -->
+                <div class="p-3 rounded-lg bg-surfaceAlt border border-white/5 mb-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-neon/10 text-neon flex items-center justify-center font-bold" id="book-avatar">C</div>
+                    <div>
+                        <p class="text-sm font-bold text-white" id="book-client-name">Nama Client</p>
+                        <p class="text-xs text-gray-400" id="book-client-contact">0812... • email@...</p>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Tanggal <span class="text-neon">*</span></label>
-                        <input type="date" id="book-date" required onchange="updateAvailableTimes()" class="w-full bg-surface border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-sm text-white">
+                        <input type="date" id="book-date" required onchange="App.ui.updateAvailableTimes()" class="w-full bg-surface border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-sm text-white">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Jam <span class="text-neon">*</span></label>
@@ -159,7 +186,7 @@
                     <label class="block text-xs text-gray-400 mb-1">Tujuan / Catatan Khusus</label>
                     <textarea id="book-notes" rows="2" class="w-full bg-surface border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-sm resize-none text-white" placeholder="Cidera sebelumnya, target spesifik..."></textarea>
                 </div>
-                <button type="submit" class="w-full bg-neon text-black font-bold py-3 rounded-lg hover:bg-neonHover hover:shadow-[0_0_15px_rgba(57,255,20,0.4)] transition-all transform hover:-translate-y-1">
+                <button type="submit" class="w-full bg-neon text-black font-bold py-3 rounded-lg hover:bg-neonHover hover:shadow-[0_0_15px_rgba(57,255,20,0.4)] transition-all transform hover:-translate-y-1 mt-2">
                     Kirim Permintaan Booking
                 </button>
             </form>
@@ -172,7 +199,7 @@
         <nav id="main-nav" class="fixed w-full z-40 glass border-b-0 transition-all duration-300">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between h-20">
-                    <div class="flex items-center cursor-pointer" onclick="navigateTo('landing')">
+                    <div class="flex items-center cursor-pointer" onclick="App.router.navigate('landing')">
                         <span class="text-2xl font-black tracking-tighter text-white">BELAJAR<span class="text-neon">BUGAR</span></span>
                     </div>
                     <div class="hidden md:block">
@@ -181,22 +208,22 @@
                             <a href="#programs" class="text-gray-300 hover:text-white transition px-3 py-2 text-sm font-medium">Programs</a>
                             <a href="#trainers" class="text-gray-300 hover:text-white transition px-3 py-2 text-sm font-medium">Trainers</a>
                             <a href="#pricing" class="text-gray-300 hover:text-white transition px-3 py-2 text-sm font-medium">Pricing</a>
-                            <button onclick="navigateTo('login')" class="text-white hover:text-neon transition px-3 py-2 font-medium ml-4">Log in</button>
-                            <button onclick="navigateTo('register')" class="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-neon transition-all transform hover:scale-105 shadow-lg">Sign Up</button>
+                            <button onclick="App.router.navigate('login')" class="text-white hover:text-neon transition px-3 py-2 font-medium ml-4">Log in</button>
+                            <button onclick="App.router.navigate('register')" class="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-neon transition-all transform hover:scale-105 shadow-lg">Sign Up</button>
                         </div>
                     </div>
                     <div class="md:hidden flex items-center">
-                        <button onclick="toggleMobileMenu()" class="text-gray-300 hover:text-white focus:outline-none"><i class="fas fa-bars text-2xl"></i></button>
+                        <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-gray-300 hover:text-white focus:outline-none"><i class="fas fa-bars text-2xl"></i></button>
                     </div>
                 </div>
             </div>
             <!-- Mobile Menu -->
             <div id="mobile-menu" class="hidden md:hidden glass border-t border-white/10 absolute w-full left-0 shadow-2xl">
                 <div class="px-4 pt-2 pb-4 space-y-2">
-                    <a href="#programs" onclick="toggleMobileMenu()" class="block px-3 py-2 text-gray-300 hover:text-white">Programs</a>
-                    <a href="#trainers" onclick="toggleMobileMenu()" class="block px-3 py-2 text-gray-300 hover:text-white">Trainers</a>
-                    <button onclick="navigateTo('login'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 text-white font-medium">Log in</button>
-                    <button onclick="navigateTo('register'); toggleMobileMenu()" class="block w-full text-center px-3 py-2 bg-neon text-black rounded-lg font-bold">Sign Up</button>
+                    <a href="#programs" onclick="document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-2 text-gray-300 hover:text-white">Programs</a>
+                    <a href="#trainers" onclick="document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-2 text-gray-300 hover:text-white">Trainers</a>
+                    <button onclick="App.router.navigate('login'); document.getElementById('mobile-menu').classList.add('hidden')" class="block w-full text-left px-3 py-2 text-white font-medium">Log in</button>
+                    <button onclick="App.router.navigate('register'); document.getElementById('mobile-menu').classList.add('hidden')" class="block w-full text-center px-3 py-2 bg-neon text-black rounded-lg font-bold">Sign Up</button>
                 </div>
             </div>
         </nav>
@@ -221,7 +248,7 @@
                             Platform eksklusif untuk menghubungkan Anda dengan Personal Trainer bersertifikat internasional. Capai body goals Anda dengan program yang terstruktur dan terukur.
                         </p>
                         <div class="flex flex-col sm:flex-row justify-center gap-4">
-                            <button onclick="navigateTo('register')" class="bg-neon text-black px-8 py-4 rounded-full font-bold text-lg hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                            <button onclick="App.router.navigate('register')" class="bg-neon text-black px-8 py-4 rounded-full font-bold text-lg hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">
                                 Mulai Transformasi <i class="fas fa-arrow-right"></i>
                             </button>
                             <a href="#programs" class="glass text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition-all flex items-center justify-center">
@@ -268,110 +295,6 @@
                 </div>
             </div>
 
-            <!-- Trainers Section -->
-            <div id="trainers" class="py-20 bg-surface/30 border-y border-white/5">
-                <div class="max-w-7xl mx-auto px-4">
-                    <div class="flex flex-col md:flex-row justify-between items-end mb-12">
-                        <div class="max-w-2xl">
-                            <h2 class="text-3xl md:text-5xl font-black text-white mb-4">Elite <span class="text-neon">Trainers</span></h2>
-                            <p class="text-gray-400">Dibimbing langsung oleh para profesional bersertifikat internasional (ACE, NASM, ISSA).</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <!-- PT 1 -->
-                        <div class="glass rounded-2xl overflow-hidden group">
-                            <div class="h-64 bg-neutral-800 relative">
-                                <img src="https://placehold.co/400x400/121212/39FF14?text=PT+1" alt="Trainer" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
-                                <div class="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded text-xs font-bold text-neon backdrop-blur-sm">NASM-CPT</div>
-                            </div>
-                            <div class="p-5">
-                                <h4 class="font-bold text-lg text-white">Alex Costa</h4>
-                                <p class="text-sm text-gray-400 mb-3">Strength & Conditioning</p>
-                                <div class="flex gap-2">
-                                    <span class="text-xs bg-surface px-2 py-1 rounded text-gray-300">5 Yrs Exp</span>
-                                    <span class="text-xs bg-surface px-2 py-1 rounded text-yellow-500"><i class="fas fa-star"></i> 5.0</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- PT 2 -->
-                        <div class="glass rounded-2xl overflow-hidden group">
-                            <div class="h-64 bg-neutral-800 relative">
-                                <img src="https://placehold.co/400x400/121212/39FF14?text=PT+2" alt="Trainer" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
-                                <div class="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded text-xs font-bold text-neon backdrop-blur-sm">ACE Certified</div>
-                            </div>
-                            <div class="p-5">
-                                <h4 class="font-bold text-lg text-white">Sarah Jenkins</h4>
-                                <p class="text-sm text-gray-400 mb-3">Fat Loss & Nutrition</p>
-                                <div class="flex gap-2">
-                                    <span class="text-xs bg-surface px-2 py-1 rounded text-gray-300">7 Yrs Exp</span>
-                                    <span class="text-xs bg-surface px-2 py-1 rounded text-yellow-500"><i class="fas fa-star"></i> 4.9</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Placeholder for visual balance -->
-                        <div class="glass rounded-2xl p-8 flex flex-col items-center justify-center text-center border-dashed border-gray-700 sm:col-span-2 lg:col-span-2">
-                            <i class="fas fa-users text-4xl text-gray-600 mb-4"></i>
-                            <h4 class="font-bold text-white mb-2">Dan 48+ Trainer Lainnya</h4>
-                            <p class="text-sm text-gray-400">Temukan kecocokan dengan trainer spesialis kami setelah Anda mendaftar.</p>
-                            <button onclick="navigateTo('register')" class="mt-4 text-neon font-bold text-sm hover:underline">Gabung Sekarang &rarr;</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pricing & Testimonials combined -->
-            <div id="pricing" class="py-24 max-w-7xl mx-auto px-4">
-                <div class="text-center mb-16">
-                    <h2 class="text-3xl md:text-5xl font-black text-white mb-4">Investasi <span class="text-neon">Kesehatan</span></h2>
-                    <p class="text-gray-400 max-w-2xl mx-auto">Transparan. Tanpa biaya tersembunyi. Pilih paket sesuai komitmen Anda.</p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-20">
-                    <!-- Paket 1 -->
-                    <div class="glass p-8 rounded-3xl relative">
-                        <h3 class="text-xl font-bold text-white mb-1">Starter Pack</h3>
-                        <p class="text-sm text-gray-400 mb-6">Cocok untuk pemula</p>
-                        <div class="mb-6"><span class="text-4xl font-black text-white">Rp 1.5jt</span><span class="text-gray-500">/4 Sesi</span></div>
-                        <ul class="space-y-3 mb-8 text-sm text-gray-300">
-                            <li><i class="fas fa-check text-neon mr-2"></i> Akses semua Trainer</li>
-                            <li><i class="fas fa-check text-neon mr-2"></i> 60 Menit per sesi</li>
-                            <li><i class="fas fa-check text-neon mr-2"></i> General Workout Plan</li>
-                        </ul>
-                        <button onclick="navigateTo('register')" class="w-full glass text-white font-bold py-3 rounded-xl hover:bg-white/10 transition">Pilih Starter</button>
-                    </div>
-                    <!-- Paket 2 -->
-                    <div class="glass-neon p-8 rounded-3xl relative transform md:-translate-y-4 shadow-[0_10px_40px_rgba(57,255,20,0.1)]">
-                        <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-neon text-black text-xs font-bold px-4 py-1 rounded-full uppercase">Best Value</div>
-                        <h3 class="text-xl font-bold text-white mb-1">Transformation</h3>
-                        <p class="text-sm text-neon/80 mb-6">Komitmen penuh untuk hasil nyata</p>
-                        <div class="mb-6"><span class="text-4xl font-black text-white">Rp 4.0jt</span><span class="text-gray-500">/12 Sesi</span></div>
-                        <ul class="space-y-3 mb-8 text-sm text-gray-300">
-                            <li><i class="fas fa-check text-neon mr-2"></i> Akses Elite Trainer</li>
-                            <li><i class="fas fa-check text-neon mr-2"></i> Custom Workout & Nutrition Plan</li>
-                            <li><i class="fas fa-check text-neon mr-2"></i> Priority Booking</li>
-                            <li><i class="fas fa-check text-neon mr-2"></i> 24/7 Trainer WhatsApp Consult</li>
-                        </ul>
-                        <button onclick="navigateTo('register')" class="w-full bg-neon text-black font-bold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(57,255,20,0.4)] transition">Mulai Transformasi</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- FAQ Section -->
-            <div class="py-16 bg-surface/30 border-t border-white/5">
-                <div class="max-w-3xl mx-auto px-4">
-                    <h2 class="text-3xl font-black text-center text-white mb-10">Frequently Asked Questions</h2>
-                    <div class="space-y-4">
-                        <div class="glass p-5 rounded-xl">
-                            <h4 class="font-bold text-white mb-2">Apakah jadwal latihan fleksibel?</h4>
-                            <p class="text-sm text-gray-400">Ya, Anda bisa mengatur jadwal sendiri melalui dashboard aplikasi sesuai dengan ketersediaan (available hours) dari Trainer.</p>
-                        </div>
-                        <div class="glass p-5 rounded-xl">
-                            <h4 class="font-bold text-white mb-2">Bagaimana jika saya berhalangan hadir?</h4>
-                            <p class="text-sm text-gray-400">Anda dapat membatalkan atau merequest reschedule maksimal 12 jam sebelum sesi dimulai melalui dashboard.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Footer -->
             <footer class="border-t border-white/10 bg-[#020202] pt-16 pb-8">
                 <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -379,22 +302,16 @@
                         <span class="text-2xl font-black tracking-tighter text-white">BELAJAR<span class="text-neon">BUGAR</span></span>
                         <p class="text-gray-500 text-sm mt-2">© 2026 PT Fitness Indonesia. All rights reserved.</p>
                     </div>
-                    <div class="flex gap-4">
-                        <a href="#" class="w-10 h-10 rounded-full glass flex items-center justify-center hover:text-neon transition"><i class="fab fa-instagram"></i></a>
-                        <a href="#" class="w-10 h-10 rounded-full glass flex items-center justify-center hover:text-neon transition"><i class="fab fa-twitter"></i></a>
-                        <a href="#" class="w-10 h-10 rounded-full glass flex items-center justify-center hover:text-neon transition"><i class="fab fa-envelope"></i></a>
-                    </div>
                 </div>
             </footer>
         </main>
 
+        <!-- Login -->
         <main id="view-login" class="view-section flex-grow flex items-center justify-center p-4 relative min-h-screen bg-[url('https://placehold.co/1920x1080/050505/111?text=+')] bg-cover bg-center">
             <div class="absolute inset-0 bg-darkBg/90 backdrop-blur-sm z-0"></div>
-            
-            <button onclick="navigateTo('landing')" class="absolute top-8 left-8 text-gray-400 hover:text-white flex items-center gap-2 transition z-50">
+            <button onclick="App.router.navigate('landing')" class="absolute top-8 left-8 text-gray-400 hover:text-white flex items-center gap-2 transition z-50">
                 <i class="fas fa-arrow-left"></i> Home
             </button>
-            
             <div class="glass w-full max-w-md p-8 rounded-3xl relative z-10 animate-slide-up shadow-2xl border-white/10">
                 <div class="text-center mb-8">
                     <span class="text-xl font-black tracking-tighter text-white mb-4 block">BELAJAR<span class="text-neon">BUGAR</span></span>
@@ -402,22 +319,22 @@
                     <p class="text-gray-400 text-sm">Masuk ke portal dashboard Anda.</p>
                 </div>
                 
-                <form id="login-form" class="space-y-5" onsubmit="App.handleLogin(event)">
+                <form id="login-form" class="space-y-5" onsubmit="App.auth.login(event)">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Email Address</label>
                         <div class="relative">
                             <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                            <input type="email" id="login-email" required class="w-full bg-surface border border-neutral-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-white placeholder-gray-600" placeholder="nama@email.com" value="client@demo.com">
+                            <input type="email" id="login-email" required class="w-full bg-surface border border-neutral-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-white placeholder-gray-600" placeholder="nama@email.com">
                         </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Password</label>
                         <div class="relative">
                             <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                            <input type="password" id="login-pass" required class="w-full bg-surface border border-neutral-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-white placeholder-gray-600" placeholder="••••••••" value="password">
+                            <input type="password" id="login-pass" required class="w-full bg-surface border border-neutral-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-white placeholder-gray-600" placeholder="••••••••">
                         </div>
                         <div class="flex justify-end mt-2">
-                            <button type="button" onclick="navigateTo('forgot')" class="text-xs text-gray-400 hover:text-neon transition">Lupa Password?</button>
+                            <button type="button" onclick="App.router.navigate('forgot')" class="text-xs text-gray-400 hover:text-neon transition">Lupa Password?</button>
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-white text-black font-bold py-3.5 rounded-xl hover:bg-neon transition-colors mt-4 shadow-lg">
@@ -426,32 +343,32 @@
                 </form>
                 
                 <div class="mt-8 text-center text-sm text-gray-400">
-                    Belum punya membership? <button onclick="navigateTo('register')" class="text-white font-bold hover:text-neon transition">Daftar sekarang</button>
+                    Belum punya membership? <button onclick="App.router.navigate('register')" class="text-white font-bold hover:text-neon transition">Daftar sekarang</button>
                 </div>
                 
+                <!-- Demo Helpers -->
                 <div class="mt-6 p-4 rounded-xl bg-surface/80 border border-neutral-800 text-xs text-gray-400">
                     <p class="text-neon mb-1 font-bold">Demo Accounts:</p>
                     <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
-                        <span>Admin: admin@belajarbugar.com</span> <button onclick="fillLogin('admin@belajarbugar.com')" class="bg-white/10 px-2 py-1 rounded hover:bg-white/20">Isi</button>
+                        <span>Admin: admin@belajarbugar.com</span> <button onclick="App.auth.fillLogin('admin@belajarbugar.com')" class="bg-white/10 px-2 py-1 rounded hover:bg-white/20">Isi</button>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span>Client: client@demo.com</span> <button onclick="fillLogin('client@demo.com')" class="bg-white/10 px-2 py-1 rounded hover:bg-white/20">Isi</button>
+                        <span>Client: client@demo.com</span> <button onclick="App.auth.fillLogin('client@demo.com')" class="bg-white/10 px-2 py-1 rounded hover:bg-white/20">Isi</button>
                     </div>
-                    <p class="mt-2 text-[10px] text-gray-500">Password: password</p>
+                    <p class="mt-2 text-[10px] text-gray-500">Password for both: <code class="bg-black px-1 rounded text-white">password</code></p>
                 </div>
             </div>
         </main>
 
+        <!-- Register -->
         <main id="view-register" class="view-section flex-grow flex items-center justify-center p-4 relative min-h-screen">
-            <button onclick="navigateTo('landing')" class="absolute top-8 left-8 text-gray-400 hover:text-white flex items-center gap-2 transition z-50"><i class="fas fa-arrow-left"></i> Home</button>
-
+            <button onclick="App.router.navigate('landing')" class="absolute top-8 left-8 text-gray-400 hover:text-white flex items-center gap-2 transition z-50"><i class="fas fa-arrow-left"></i> Home</button>
             <div class="glass w-full max-w-md p-8 rounded-3xl relative z-10 my-10 animate-slide-up">
                 <div class="text-center mb-8">
                     <h2 class="text-3xl font-black mb-2 text-white">Buat Akun</h2>
                     <p class="text-gray-400 text-sm">Langkah pertama menuju versi terbaik diri Anda.</p>
                 </div>
-                
-                <form id="register-form" class="space-y-4" onsubmit="App.handleRegister(event)">
+                <form id="register-form" class="space-y-4" onsubmit="App.auth.register(event)">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Nama Lengkap</label>
                         <input type="text" id="reg-name" required class="w-full bg-surface border border-neutral-700 rounded-xl py-3 px-4 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition text-white" placeholder="John Doe">
@@ -472,22 +389,22 @@
                         Daftar Sebagai Member
                     </button>
                 </form>
-                
                 <div class="mt-6 text-center text-sm text-gray-400">
-                    Sudah punya akun? <button onclick="navigateTo('login')" class="text-white font-bold hover:text-neon transition">Log In</button>
+                    Sudah punya akun? <button onclick="App.router.navigate('login')" class="text-white font-bold hover:text-neon transition">Log In</button>
                 </div>
             </div>
         </main>
 
+        <!-- Forgot Password -->
         <main id="view-forgot" class="view-section flex-grow flex items-center justify-center p-4 relative min-h-screen">
-             <button onclick="navigateTo('login')" class="absolute top-8 left-8 text-gray-400 hover:text-white flex items-center gap-2 transition z-50"><i class="fas fa-arrow-left"></i> Kembali ke Login</button>
+             <button onclick="App.router.navigate('login')" class="absolute top-8 left-8 text-gray-400 hover:text-white flex items-center gap-2 transition z-50"><i class="fas fa-arrow-left"></i> Kembali ke Login</button>
              <div class="glass w-full max-w-md p-8 rounded-3xl relative z-10 animate-slide-up">
                  <div class="text-center mb-8">
                      <i class="fas fa-key text-4xl text-neon mb-4"></i>
                      <h2 class="text-2xl font-black mb-2 text-white">Reset Password</h2>
                      <p class="text-gray-400 text-sm">Masukkan email Anda untuk menerima tautan reset.</p>
                  </div>
-                 <form onsubmit="App.handleForgot(event)" class="space-y-4">
+                 <form onsubmit="App.auth.forgot(event)" class="space-y-4">
                      <input type="email" required class="w-full bg-surface border border-neutral-700 rounded-xl py-3 px-4 focus:outline-none focus:border-neon transition text-white" placeholder="Email terdaftar">
                      <button type="submit" class="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition">Kirim Tautan</button>
                  </form>
@@ -495,18 +412,17 @@
         </main>
 
         <main id="view-client-dash" class="view-section h-screen w-full bg-darkBg text-white overflow-hidden flex flex-col md:flex-row">
-            
             <!-- Mobile Topbar -->
             <div class="md:hidden glass p-4 flex justify-between items-center z-20 border-b border-white/5">
                 <span class="text-xl font-black">B<span class="text-neon">B</span></span>
-                <button onclick="toggleSidebar('client-sidebar')" class="text-white focus:outline-none"><i class="fas fa-bars text-xl"></i></button>
+                <button onclick="App.ui.toggleSidebar('client-sidebar')" class="text-white focus:outline-none"><i class="fas fa-bars text-xl"></i></button>
             </div>
 
-            <!-- Client Sidebar -->
+            <!-- Sidebar -->
             <aside id="client-sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-surface/90 backdrop-blur-xl border-r border-white/5 transform -translate-x-full md:relative md:translate-x-0 transition duration-300 flex flex-col shadow-2xl md:shadow-none">
                 <div class="p-6 flex items-center justify-between">
                     <span class="text-xl font-black tracking-tighter">BELAJAR<span class="text-neon">BUGAR</span></span>
-                    <button class="md:hidden text-gray-400" onclick="toggleSidebar('client-sidebar')"><i class="fas fa-times"></i></button>
+                    <button class="md:hidden text-gray-400" onclick="App.ui.toggleSidebar('client-sidebar')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="px-6 pb-6 border-b border-white/5 text-center">
                     <div class="w-20 h-20 mx-auto rounded-full bg-neutral-800 flex items-center justify-center text-3xl text-neon mb-3 font-bold border-2 border-neon/30 shadow-[0_0_15px_rgba(57,255,20,0.1)]" id="client-avatar">C</div>
@@ -514,35 +430,34 @@
                     <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1 bg-white/5 inline-block px-2 py-0.5 rounded">Pro Member</p>
                 </div>
                 <nav class="flex-1 p-4 space-y-2">
-                    <button onclick="App.ui.switchClientTab('dashboard')" id="ctab-btn-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-neon/10 text-neon font-bold transition">
+                    <button onclick="App.ui.switchTab('client', 'dashboard')" id="ctab-btn-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-neon/10 text-neon font-bold transition">
                         <i class="fas fa-home w-5"></i> Dashboard
                     </button>
-                    <button onclick="App.ui.switchClientTab('history')" id="ctab-btn-history" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
+                    <button onclick="App.ui.switchTab('client', 'history')" id="ctab-btn-history" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
                         <i class="fas fa-history w-5"></i> Riwayat Sesi
                     </button>
-                    <button onclick="App.ui.switchClientTab('profile')" id="ctab-btn-profile" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
+                    <button onclick="App.ui.switchTab('client', 'profile')" id="ctab-btn-profile" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
                         <i class="fas fa-user-cog w-5"></i> Profil & Setting
                     </button>
                 </nav>
                 <div class="p-4 border-t border-white/5">
-                    <button onclick="App.handleLogout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition">
+                    <button onclick="App.auth.logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition">
                         <i class="fas fa-sign-out-alt w-5"></i> Keluar
                     </button>
                 </div>
             </aside>
 
-            <!-- Client Main Content -->
+            <!-- Content -->
             <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0a0a0a]">
-                
-                <!-- Tab: Dashboard -->
+                <!-- Dashboard Tab -->
                 <div id="ctab-dashboard" class="tab-content active max-w-5xl mx-auto">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-surface p-6 rounded-2xl border border-white/5 relative overflow-hidden">
-                        <div class="absolute right-0 top-0 w-64 h-64 bg-neon/5 rounded-full blur-3xl"></div>
+                        <div class="absolute right-0 top-0 w-64 h-64 bg-neon/5 rounded-full blur-3xl pointer-events-none"></div>
                         <div class="relative z-10">
                             <h1 class="text-3xl font-black mb-1">Hello, <span id="client-welcome-name" class="text-neon"></span>!</h1>
                             <p class="text-gray-400 text-sm">Tetap konsisten, hasil nyata menanti Anda.</p>
                         </div>
-                        <button onclick="openModal('booking-modal')" class="relative z-10 bg-neon text-black px-6 py-3 rounded-xl font-bold hover:shadow-[0_0_20px_rgba(57,255,20,0.3)] transition-all flex items-center gap-2 transform hover:-translate-y-1">
+                        <button onclick="App.ui.openBookingModal()" class="relative z-10 bg-neon text-black px-6 py-3 rounded-xl font-bold hover:shadow-[0_0_20px_rgba(57,255,20,0.3)] transition-all flex items-center gap-2 transform hover:-translate-y-1">
                             <i class="fas fa-calendar-plus"></i> Booking Sesi Baru
                         </button>
                     </div>
@@ -573,16 +488,16 @@
                         <i class="fas fa-dumbbell text-4xl text-gray-600 mb-4 block"></i>
                         <h3 class="text-lg font-bold mb-1">Belum ada jadwal aktif</h3>
                         <p class="text-gray-400 text-sm mb-4">Ayo mulai dengan booking sesi pertamamu.</p>
-                        <button onclick="openModal('booking-modal')" class="text-neon text-sm font-bold hover:underline">Booking Sekarang</button>
+                        <button onclick="App.ui.openBookingModal()" class="text-neon text-sm font-bold hover:underline">Booking Sekarang</button>
                     </div>
                 </div>
 
-                <!-- Tab: History -->
+                <!-- History Tab -->
                 <div id="ctab-history" class="tab-content max-w-5xl mx-auto">
                     <h2 class="text-2xl font-bold mb-6 border-b border-white/10 pb-4">Riwayat Latihan</h2>
                     <div class="glass rounded-2xl overflow-hidden border border-white/5">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
                                 <thead class="bg-surfaceAlt text-gray-400 text-xs uppercase">
                                     <tr><th class="p-4">Tanggal & Jam</th><th class="p-4">Program</th><th class="p-4">Durasi</th><th class="p-4">Status</th></tr>
                                 </thead>
@@ -593,7 +508,7 @@
                     </div>
                 </div>
 
-                <!-- Tab: Profile -->
+                <!-- Profile Tab -->
                 <div id="ctab-profile" class="tab-content max-w-2xl mx-auto">
                     <h2 class="text-2xl font-bold mb-6 border-b border-white/10 pb-4">Profil & Pengaturan</h2>
                     <div class="glass p-6 rounded-2xl border border-white/5">
@@ -618,31 +533,30 @@
                         </form>
                     </div>
                 </div>
-
             </div>
         </main>
 
         <main id="view-admin-dash" class="view-section h-screen w-full bg-[#050505] text-white overflow-hidden flex flex-col md:flex-row">
-            
             <div class="md:hidden glass p-4 flex justify-between items-center z-20 border-b border-white/5">
                 <span class="text-xl font-black text-neon">PT. ADMIN</span>
-                <button onclick="toggleSidebar('admin-sidebar')" class="text-white"><i class="fas fa-bars"></i></button>
+                <button onclick="App.ui.toggleSidebar('admin-sidebar')" class="text-white"><i class="fas fa-bars"></i></button>
             </div>
 
+            <!-- Sidebar -->
             <aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-surface border-r border-white/5 transform -translate-x-full md:relative md:translate-x-0 transition duration-300 flex flex-col shadow-2xl md:shadow-none">
                 <div class="p-6 border-b border-white/5">
                     <span class="text-xl font-black tracking-widest">PT.<span class="text-neon">PANEL</span></span>
                 </div>
                 <nav class="flex-1 p-4 space-y-1">
                     <p class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 mt-2">Management</p>
-                    <button onclick="App.ui.switchAdminTab('bookings')" id="atab-btn-bookings" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg bg-neon/10 text-neon font-bold transition">
+                    <button onclick="App.ui.switchTab('admin', 'bookings')" id="atab-btn-bookings" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg bg-neon/10 text-neon font-bold transition">
                         <i class="fas fa-calendar-alt w-5"></i> Bookings
                     </button>
-                    <button onclick="App.ui.switchAdminTab('clients')" id="atab-btn-clients" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
+                    <button onclick="App.ui.switchTab('admin', 'clients')" id="atab-btn-clients" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
                         <i class="fas fa-users w-5"></i> Data Client
                     </button>
-                    <button onclick="App.ui.switchAdminTab('settings')" id="atab-btn-settings" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
-                        <i class="fas fa-cog w-5"></i> Jam Operasional
+                    <button onclick="App.ui.switchTab('admin', 'settings')" id="atab-btn-settings" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition font-medium">
+                        <i class="fas fa-cog w-5"></i> Pengaturan Jam
                     </button>
                 </nav>
                 <div class="p-4 border-t border-white/5">
@@ -653,15 +567,15 @@
                             <p class="text-[10px] text-neon uppercase">Super User</p>
                         </div>
                     </div>
-                    <button onclick="App.handleLogout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-neutral-700 text-gray-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition text-sm">
+                    <button onclick="App.auth.logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-neutral-700 text-gray-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition text-sm">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </button>
                 </div>
             </aside>
 
+            <!-- Content -->
             <div class="flex-1 overflow-y-auto bg-[#0a0a0a] p-4 md:p-8">
-                
-                <!-- Admin Header Stats -->
+                <!-- Stats Header -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div class="glass p-4 rounded-xl border border-white/5">
                         <p class="text-gray-500 text-xs uppercase tracking-wider mb-1">Total Booking</p>
@@ -681,13 +595,13 @@
                     </div>
                 </div>
 
-                <!-- Admin Tab: Bookings -->
+                <!-- Bookings Tab -->
                 <div id="atab-bookings" class="tab-content active">
-                    <div class="glass rounded-2xl border border-white/5 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
+                    <div class="glass rounded-2xl border border-white/5 overflow-hidden flex flex-col h-[calc(100vh-200px)] min-h-[400px]">
                         <div class="p-4 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 bg-surface/50">
                             <h2 class="text-lg font-bold">Manajemen Reservasi</h2>
                             <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                                <input type="text" id="admin-search" placeholder="Cari nama client..." oninput="App.admin.renderBookings()" class="bg-surfaceAlt border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white focus:border-neon outline-none">
+                                <input type="text" id="admin-search" placeholder="Cari nama client..." oninput="App.admin.renderBookings()" class="bg-surfaceAlt border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white focus:border-neon outline-none flex-1 md:flex-none">
                                 <select id="admin-filter" onchange="App.admin.renderBookings()" class="bg-surfaceAlt border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none">
                                     <option value="All">Semua Status</option>
                                     <option value="Pending">Pending</option>
@@ -698,7 +612,6 @@
                                 <button onclick="App.admin.exportCSV()" class="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-sm transition text-white flex items-center gap-2"><i class="fas fa-download"></i> CSV</button>
                             </div>
                         </div>
-                        
                         <div class="flex-1 overflow-auto">
                             <table class="w-full text-left border-collapse text-sm min-w-[800px]">
                                 <thead class="bg-surface sticky top-0 z-10 shadow-md">
@@ -717,12 +630,12 @@
                     </div>
                 </div>
 
-                <!-- Admin Tab: Clients -->
+                <!-- Clients Tab -->
                 <div id="atab-clients" class="tab-content">
                      <div class="glass rounded-2xl border border-white/5 p-6">
                          <h2 class="text-lg font-bold mb-4 border-b border-white/10 pb-2">Database Member</h2>
                          <div class="overflow-x-auto">
-                             <table class="w-full text-left text-sm">
+                             <table class="w-full text-left text-sm whitespace-nowrap">
                                  <thead class="text-gray-400 text-xs uppercase border-b border-white/5">
                                      <tr><th class="py-2">Nama</th><th class="py-2">Email</th><th class="py-2">WhatsApp</th><th class="py-2">Joined</th></tr>
                                  </thead>
@@ -732,11 +645,11 @@
                      </div>
                 </div>
 
-                <!-- Admin Tab: Settings -->
+                <!-- Settings Tab -->
                 <div id="atab-settings" class="tab-content">
                     <div class="glass rounded-2xl border border-white/5 p-6 max-w-2xl">
                         <h2 class="text-lg font-bold mb-2">Jam Operasional (Available Hours)</h2>
-                        <p class="text-sm text-gray-400 mb-6 border-b border-white/10 pb-4">Pilih jam yang tersedia untuk di-booking oleh client.</p>
+                        <p class="text-sm text-gray-400 mb-6 border-b border-white/10 pb-4">Pilih jam yang tersedia untuk di-booking oleh client. Perubahan otomatis memengaruhi pilihan di form booking.</p>
                         
                         <div id="hours-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
                             <!-- Injected via JS -->
@@ -744,14 +657,11 @@
                         <button onclick="App.admin.saveHours()" class="bg-neon text-black font-bold px-6 py-2 rounded-lg hover:shadow-[0_0_15px_rgba(57,255,20,0.4)] transition">Simpan Pengaturan Jam</button>
                     </div>
                 </div>
-
             </div>
         </main>
-
     </div>
 
     <script>
-        // --- 1. CORE SYSTEM & DATABASE ---
         const DB_KEY = 'belajarBugarDB_FullStack';
         
         const App = {
@@ -766,9 +676,18 @@
 
             init() {
                 this.loadDB();
-                this.setupRouting();
-                window.addEventListener('hashchange', () => this.handleRoute());
-                this.handleRoute(); // initial load
+                this.router.setup();
+                
+                // Form Listeners
+                document.getElementById('booking-form').addEventListener('submit', (e) => this.client.book(e));
+                document.getElementById('reschedule-form').addEventListener('submit', (e) => this.admin.saveReschedule(e));
+                
+                // Close modals on outside click
+                window.onclick = (e) => {
+                    if (e.target.id === 'booking-modal') this.ui.closeModal('booking-modal');
+                    if (e.target.id === 'reschedule-modal') this.ui.closeModal('reschedule-modal');
+                    if (e.target.id === 'confirm-modal') this.ui.closeConfirm();
+                };
             },
 
             loadDB() {
@@ -786,9 +705,9 @@
 
             seedData() {
                 // Admin
-                this.state.users.push({ id: 'u_admin', name: 'Master PT', email: 'admin@belajarbugar.com', password: 'password', role: 'admin', phone: '08111', createdAt: new Date().toISOString() });
+                this.state.users.push({ id: 'u_admin', name: 'Master PT', email: 'admin@belajarbugar.com', password: 'password', role: 'admin', phone: '08111222333', createdAt: new Date().toISOString() });
                 // Demo Client
-                this.state.users.push({ id: 'u_client1', name: 'Client Demo', email: 'client@demo.com', password: 'password', role: 'client', phone: '08222', createdAt: new Date().toISOString() });
+                this.state.users.push({ id: 'u_client1', name: 'Client Demo', email: 'client@demo.com', password: 'password', role: 'client', phone: '08999888777', createdAt: new Date().toISOString() });
                 
                 // Seed some past and future bookings
                 let today = new Date();
@@ -798,57 +717,55 @@
                 const dFormat = d => d.toISOString().split('T')[0];
 
                 this.state.bookings.push(
-                    { id: 'b_1', clientId: 'u_client1', clientName: 'Client Demo', clientPhone: '08222', date: dFormat(tomorrow), time: '09:00', type: 'Fat Loss', duration: '60 Menit', notes: 'Pemula', status: 'Approved', createdAt: new Date().toISOString() },
-                    { id: 'b_2', clientId: 'u_client1', clientName: 'Client Demo', clientPhone: '08222', date: dFormat(tomorrow), time: '16:00', type: 'Muscle Gain', duration: '90 Menit', notes: '', status: 'Pending', createdAt: new Date().toISOString() },
-                    { id: 'b_3', clientId: 'u_client1', clientName: 'Client Demo', clientPhone: '08222', date: dFormat(yesterday), time: '07:00', type: 'Cardio', duration: '60 Menit', notes: '', status: 'Completed', createdAt: new Date().toISOString() }
+                    { id: 'b_1', clientId: 'u_client1', clientName: 'Client Demo', clientPhone: '08999888777', date: dFormat(tomorrow), time: '09:00', type: 'Fat Loss', duration: '60 Menit', notes: 'Pemula, minta fokus di area perut', status: 'Approved', createdAt: new Date().toISOString() },
+                    { id: 'b_2', clientId: 'u_client1', clientName: 'Client Demo', clientPhone: '08999888777', date: dFormat(tomorrow), time: '16:00', type: 'Muscle Gain', duration: '90 Menit', notes: '', status: 'Pending', createdAt: new Date().toISOString() },
+                    { id: 'b_3', clientId: 'u_client1', clientName: 'Client Demo', clientPhone: '08999888777', date: dFormat(yesterday), time: '07:00', type: 'Cardio', duration: '60 Menit', notes: '', status: 'Completed', createdAt: new Date().toISOString() }
                 );
                 this.saveDB();
             },
 
-            // --- 2. ROUTING & UI UTILS ---
-            setupRouting() {
-                // Initial check if logged in but on root
-                if(window.location.hash === '' || window.location.hash === '#landing') {
-                    if(this.state.currentUser) {
-                        window.location.hash = this.state.currentUser.role === 'admin' ? '#admin-dash' : '#client-dash';
+            router: {
+                setup() {
+                    window.addEventListener('hashchange', () => this.handle());
+                    if(!window.location.hash) window.location.hash = '#landing';
+                    this.handle();
+                },
+                navigate(path) {
+                    window.location.hash = '#' + path;
+                },
+                handle() {
+                    const hash = window.location.hash.replace('#', '') || 'landing';
+                    
+                    // Auth Guards
+                    const reqAuth = ['client-dash', 'admin-dash'];
+                    if (reqAuth.includes(hash) && !App.state.currentUser) {
+                        this.navigate('login'); return;
+                    }
+                    if (hash === 'login' || hash === 'register') {
+                        if (App.state.currentUser) {
+                            this.navigate(App.state.currentUser.role === 'admin' ? 'admin-dash' : 'client-dash'); return;
+                        }
+                    }
+
+                    // View Switching
+                    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active', 'flex-active'));
+                    const target = document.getElementById(`view-${hash}`);
+                    if(!target) { this.navigate('landing'); return; }
+
+                    if (['client-dash', 'admin-dash'].includes(hash)) {
+                        target.classList.add('flex-active');
+                        document.getElementById('main-nav').style.display = 'none';
+                        if(hash === 'client-dash') App.client.render();
+                        if(hash === 'admin-dash') {
+                            if(App.state.currentUser.role !== 'admin') { this.navigate('client-dash'); return; }
+                            App.admin.render();
+                        }
                     } else {
-                        window.location.hash = '#landing';
+                        target.classList.add('active');
+                        document.getElementById('main-nav').style.display = 'block';
                     }
+                    window.scrollTo(0,0);
                 }
-            },
-
-            handleRoute() {
-                const hash = window.location.hash.replace('#', '') || 'landing';
-                
-                // Auth Guard
-                const reqAuth = ['client-dash', 'admin-dash'];
-                if (reqAuth.includes(hash) && !this.state.currentUser) {
-                    window.location.hash = '#login';
-                    return;
-                }
-
-                // Hide all views
-                document.querySelectorAll('.view-section').forEach(el => {
-                    el.classList.remove('active', 'flex-active');
-                });
-                
-                const target = document.getElementById(`view-${hash}`);
-                if(!target) { window.location.hash = '#landing'; return; }
-
-                // Display logic
-                if (['client-dash', 'admin-dash'].includes(hash)) {
-                    target.classList.add('flex-active');
-                    document.getElementById('main-nav').style.display = 'none';
-                    if(hash === 'client-dash') this.client.render();
-                    if(hash === 'admin-dash') {
-                        if(this.state.currentUser.role !== 'admin') { window.location.hash = '#client-dash'; return; }
-                        this.admin.render();
-                    }
-                } else {
-                    target.classList.add('active');
-                    document.getElementById('main-nav').style.display = 'block';
-                }
-                window.scrollTo(0,0);
             },
 
             ui: {
@@ -868,9 +785,41 @@
                         setTimeout(() => t.remove(), 400);
                     }, 3500);
                 },
+
+                // Custom Confirm Modal
+                _confirmCallback: null,
+                confirm(message, callback) {
+                    this._confirmCallback = callback;
+                    document.getElementById('confirm-modal-msg').innerText = message;
+                    
+                    const m = document.getElementById('confirm-modal');
+                    const c = document.getElementById('confirm-modal-content');
+                    m.classList.remove('hidden'); m.classList.add('flex');
+                    
+                    // Cleanup old listeners to prevent multiple fires
+                    const btn = document.getElementById('confirm-modal-btn');
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    
+                    newBtn.addEventListener('click', () => {
+                        if(this._confirmCallback) this._confirmCallback();
+                        this.closeConfirm();
+                    });
+
+                    setTimeout(() => { c.classList.remove('scale-95', 'opacity-0'); c.classList.add('scale-100', 'opacity-100'); }, 10);
+                },
+                closeConfirm() {
+                    const m = document.getElementById('confirm-modal');
+                    const c = document.getElementById('confirm-modal-content');
+                    c.classList.remove('scale-100', 'opacity-100'); c.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 300);
+                    this._confirmCallback = null;
+                },
+
                 formatDate(dStr) {
                     return new Date(dStr).toLocaleDateString('id-ID', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
                 },
+
                 getStatusStyle(status) {
                     switch(status) {
                         case 'Approved': return 'text-neon bg-neon/10 border-neon/20';
@@ -880,76 +829,132 @@
                         default: return 'text-gray-400 bg-gray-500/10';
                     }
                 },
-                switchClientTab(tab) {
-                    ['dashboard', 'history', 'profile'].forEach(t => {
-                        document.getElementById(`ctab-${t}`).classList.remove('active');
-                        document.getElementById(`ctab-btn-${t}`).className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition font-medium';
+
+                switchTab(role, tab) {
+                    const prefix = role === 'admin' ? 'atab' : 'ctab';
+                    const tabs = role === 'admin' ? ['bookings', 'clients', 'settings'] : ['dashboard', 'history', 'profile'];
+                    tabs.forEach(t => {
+                        document.getElementById(`${prefix}-${t}`).classList.remove('active');
+                        document.getElementById(`${prefix}-btn-${t}`).className = `w-full flex items-center gap-3 px-4 ${role==='admin'?'py-2.5 rounded-lg':'py-3 rounded-xl'} text-gray-400 hover:bg-white/5 hover:text-white transition font-medium`;
                     });
-                    document.getElementById(`ctab-${tab}`).classList.add('active');
-                    document.getElementById(`ctab-btn-${tab}`).className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-neon/10 text-neon font-bold transition';
+                    document.getElementById(`${prefix}-${tab}`).classList.add('active');
+                    document.getElementById(`${prefix}-btn-${tab}`).className = `w-full flex items-center gap-3 px-4 ${role==='admin'?'py-2.5 rounded-lg':'py-3 rounded-xl'} bg-neon/10 text-neon font-bold transition`;
                 },
-                switchAdminTab(tab) {
-                    ['bookings', 'clients', 'settings'].forEach(t => {
-                        document.getElementById(`atab-${t}`).classList.remove('active');
-                        document.getElementById(`atab-btn-${t}`).className = 'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition font-medium';
+
+                toggleSidebar(id) {
+                    document.getElementById(id).classList.toggle('-translate-x-full');
+                },
+
+                openModal(id) {
+                    const m = document.getElementById(id);
+                    const c = document.getElementById(`${id}-content`);
+                    m.classList.remove('hidden'); m.classList.add('flex');
+                    setTimeout(() => { c.classList.remove('scale-95', 'opacity-0'); c.classList.add('scale-100', 'opacity-100'); }, 10);
+                },
+
+                closeModal(id) {
+                    const m = document.getElementById(id);
+                    const c = document.getElementById(`${id}-content`);
+                    c.classList.remove('scale-100', 'opacity-100'); c.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 300);
+                },
+
+                openBookingModal() {
+                    const u = App.state.currentUser;
+                    document.getElementById('book-client-name').innerText = u.name;
+                    document.getElementById('book-client-contact').innerText = `${u.phone} • ${u.email}`;
+                    document.getElementById('book-avatar').innerText = u.name.charAt(0).toUpperCase();
+
+                    document.getElementById('book-date').min = new Date().toISOString().split('T')[0];
+                    document.getElementById('book-time').innerHTML = '<option value="">Pilih Tanggal Dulu</option>';
+                    this.openModal('booking-modal');
+                },
+
+                getAvailableTimes(dateStr, excludeBookingId = null) {
+                    if(!dateStr) return [];
+                    const booked = App.state.bookings
+                        .filter(b => b.date === dateStr && b.status !== 'Cancelled' && b.id !== excludeBookingId)
+                        .map(b => b.time);
+                    return App.state.settings.availableHours.filter(h => !booked.includes(h));
+                },
+
+                updateAvailableTimes() {
+                    const date = document.getElementById('book-date').value;
+                    const sel = document.getElementById('book-time');
+                    const avail = this.getAvailableTimes(date);
+                    
+                    sel.innerHTML = '<option value="">Pilih Jam</option>';
+                    if(avail.length === 0) sel.innerHTML = '<option value="">Jadwal Penuh</option>';
+                    else avail.forEach(h => sel.innerHTML += `<option value="${h}">${h}</option>`);
+                },
+
+                updateRescheduleTimes(currentTime = null) {
+                    const date = document.getElementById('reschedule-date').value;
+                    const bId = document.getElementById('reschedule-booking-id').value;
+                    const sel = document.getElementById('reschedule-time');
+                    const avail = this.getAvailableTimes(date, bId);
+                    
+                    sel.innerHTML = '<option value="">Pilih Jam</option>';
+                    avail.forEach(h => {
+                        const isSelected = h === currentTime ? 'selected' : '';
+                        sel.innerHTML += `<option value="${h}" ${isSelected}>${h}</option>`;
                     });
-                    document.getElementById(`atab-${tab}`).classList.add('active');
-                    document.getElementById(`atab-btn-${tab}`).className = 'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg bg-neon/10 text-neon font-bold transition';
                 }
             },
 
-            // --- 3. AUTHENTICATION ---
-            handleLogin(e) {
-                e.preventDefault();
-                const email = document.getElementById('login-email').value.trim();
-                const pass = document.getElementById('login-pass').value;
-                const user = this.state.users.find(u => u.email === email && u.password === pass);
+            auth: {
+                login(e) {
+                    e.preventDefault();
+                    const email = document.getElementById('login-email').value.trim();
+                    const pass = document.getElementById('login-pass').value;
+                    const user = App.state.users.find(u => u.email === email && u.password === pass);
 
-                if (user) {
-                    this.state.currentUser = user;
-                    this.saveDB();
-                    this.ui.showToast(`Welcome back, ${user.name}!`);
-                    window.location.hash = user.role === 'admin' ? '#admin-dash' : '#client-dash';
-                } else {
-                    this.ui.showToast('Email atau password salah!', 'error');
+                    if (user) {
+                        App.state.currentUser = user;
+                        App.saveDB();
+                        App.ui.showToast(`Welcome back, ${user.name}!`);
+                        App.router.navigate(user.role === 'admin' ? 'admin-dash' : 'client-dash');
+                    } else {
+                        App.ui.showToast('Email atau password salah!', 'error');
+                    }
+                },
+                register(e) {
+                    e.preventDefault();
+                    const name = document.getElementById('reg-name').value.trim();
+                    const email = document.getElementById('reg-email').value.trim();
+                    const wa = document.getElementById('reg-wa').value.trim();
+                    const pass = document.getElementById('reg-pass').value;
+
+                    if (App.state.users.find(u => u.email === email)) return App.ui.showToast('Email sudah terdaftar!', 'error');
+
+                    const newUser = { id: 'u_' + Date.now(), name, email, phone: wa, password: pass, role: 'client', createdAt: new Date().toISOString() };
+                    App.state.users.push(newUser);
+                    App.state.currentUser = newUser;
+                    App.saveDB();
+
+                    App.ui.showToast('Registrasi berhasil!');
+                    setTimeout(() => App.router.navigate('client-dash'), 500);
+                },
+                logout() {
+                    App.ui.confirm('Yakin ingin keluar dari akun?', () => {
+                        App.state.currentUser = null;
+                        App.saveDB();
+                        App.ui.showToast('Berhasil logout.', 'info');
+                        App.router.navigate('landing');
+                        document.getElementById('login-form').reset();
+                    });
+                },
+                forgot(e) {
+                    e.preventDefault();
+                    App.ui.showToast('Tautan reset password telah dikirim ke email Anda. (Simulasi)', 'info');
+                    setTimeout(() => App.router.navigate('login'), 1500);
+                },
+                fillLogin(email) {
+                    document.getElementById('login-email').value = email;
+                    document.getElementById('login-pass').value = 'password';
                 }
             },
 
-            handleRegister(e) {
-                e.preventDefault();
-                const name = document.getElementById('reg-name').value.trim();
-                const email = document.getElementById('reg-email').value.trim();
-                const wa = document.getElementById('reg-wa').value.trim();
-                const pass = document.getElementById('reg-pass').value;
-
-                if (this.state.users.find(u => u.email === email)) {
-                    return this.ui.showToast('Email sudah terdaftar!', 'error');
-                }
-
-                const newUser = { id: 'u_' + Date.now(), name, email, phone: wa, password: pass, role: 'client', createdAt: new Date().toISOString() };
-                this.state.users.push(newUser);
-                this.state.currentUser = newUser;
-                this.saveDB();
-
-                this.ui.showToast('Registrasi berhasil!');
-                setTimeout(() => { window.location.hash = '#client-dash'; }, 500);
-            },
-
-            handleLogout() {
-                this.state.currentUser = null;
-                this.saveDB();
-                this.ui.showToast('Berhasil logout.', 'info');
-                window.location.hash = '#landing';
-                document.getElementById('login-form').reset();
-            },
-
-            handleForgot(e) {
-                e.preventDefault();
-                this.ui.showToast('Tautan reset password telah dikirim ke email Anda. (Simulasi)', 'info');
-                setTimeout(() => window.location.hash = '#login', 1500);
-            },
-
-            // --- 4. CLIENT DASHBOARD LOGIC ---
             client: {
                 render() {
                     const u = App.state.currentUser;
@@ -957,20 +962,16 @@
                     document.getElementById('client-welcome-name').innerText = u.name.split(' ')[0];
                     document.getElementById('client-avatar').innerText = u.name.charAt(0).toUpperCase();
 
-                    // Pre-fill profile
                     document.getElementById('prof-name').value = u.name;
                     document.getElementById('prof-email').value = u.email;
                     document.getElementById('prof-wa').value = u.phone;
 
-                    const myBookings = App.state.bookings.filter(b => b.clientId === u.id).sort((a,b) => new Date(b.date) - new Date(a.date));
-                    
-                    // Split Active (Future/Pending/Appr) vs History (Past/Completed/Cancelled)
+                    const myBookings = App.state.bookings.filter(b => b.clientId === u.id);
                     const todayStr = new Date().toISOString().split('T')[0];
                     
-                    const active = myBookings.filter(b => b.status !== 'Completed' && b.status !== 'Cancelled' && b.date >= todayStr);
-                    const history = myBookings.filter(b => b.status === 'Completed' || b.status === 'Cancelled' || b.date < todayStr);
+                    const active = myBookings.filter(b => b.status !== 'Completed' && b.status !== 'Cancelled' && b.date >= todayStr).sort((a,b) => new Date(a.date) - new Date(b.date));
+                    const history = myBookings.filter(b => b.status === 'Completed' || b.status === 'Cancelled' || b.date < todayStr).sort((a,b) => new Date(b.date) - new Date(a.date));
 
-                    // Update Stats
                     document.getElementById('client-stat-upcoming').innerText = active.length;
                     document.getElementById('client-stat-completed').innerText = myBookings.filter(b => b.status === 'Completed').length;
 
@@ -982,7 +983,6 @@
                     else {
                         upEmpty.classList.add('hidden');
                         active.forEach(b => {
-                            const sc = App.ui.getStatusStyle(b.status);
                             upContainer.innerHTML += `
                                 <div class="glass p-5 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-white/10 transition-colors">
                                     <div class="flex items-start gap-4">
@@ -995,7 +995,7 @@
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end gap-2 w-full sm:w-auto">
-                                        <span class="px-3 py-1 rounded-full text-xs font-bold border ${sc} w-full sm:w-auto text-center">${b.status}</span>
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold border ${App.ui.getStatusStyle(b.status)} w-full sm:w-auto text-center">${b.status}</span>
                                         ${b.status === 'Pending' ? `<button onclick="App.client.cancel('${b.id}')" class="text-xs text-red-400 hover:text-red-300 transition w-full text-right">Batalkan Sesi</button>` : ''}
                                     </div>
                                 </div>`;
@@ -1009,7 +1009,7 @@
                     if(history.length === 0) { histEmpty.classList.remove('hidden'); }
                     else {
                         histEmpty.classList.add('hidden');
-                        history.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(b => {
+                        history.forEach(b => {
                             histBody.innerHTML += `
                                 <tr class="hover:bg-white/[0.02] transition">
                                     <td class="p-4"><p class="text-white">${App.ui.formatDate(b.date)}</p><p class="text-xs text-gray-500 font-mono">${b.time}</p></td>
@@ -1021,6 +1021,43 @@
                     }
                 },
                 
+                book(e) {
+                    e.preventDefault();
+                    const date = document.getElementById('book-date').value;
+                    const time = document.getElementById('book-time').value;
+                    if(!time) return App.ui.showToast('Pilih jam yang valid', 'error');
+
+                    const u = App.state.currentUser;
+                    const newB = {
+                        id: 'b_' + Date.now(),
+                        clientId: u.id, clientName: u.name, clientPhone: u.phone,
+                        date, time,
+                        type: document.getElementById('book-type').value,
+                        duration: document.getElementById('book-duration').value,
+                        notes: document.getElementById('book-notes').value,
+                        status: 'Pending',
+                        createdAt: new Date().toISOString()
+                    };
+                    App.state.bookings.push(newB);
+                    App.saveDB();
+                    App.ui.closeModal('booking-modal');
+                    App.ui.showToast('Booking berhasil diajukan! Menunggu approval.');
+                    document.getElementById('booking-form').reset();
+                    this.render();
+                },
+
+                cancel(id) {
+                    App.ui.confirm('Yakin ingin membatalkan jadwal booking ini?', () => {
+                        const b = App.state.bookings.find(x => x.id === id);
+                        if(b) { 
+                            b.status = 'Cancelled'; 
+                            App.saveDB(); 
+                            App.ui.showToast('Booking berhasil dibatalkan', 'info'); 
+                            this.render(); 
+                        }
+                    });
+                },
+
                 updateProfile(e) {
                     e.preventDefault();
                     const u = App.state.currentUser;
@@ -1029,25 +1066,16 @@
                     const pass = document.getElementById('prof-pass').value;
                     if(pass) u.password = pass;
                     
-                    // Update user in array
                     const idx = App.state.users.findIndex(x => x.id === u.id);
                     if(idx !== -1) App.state.users[idx] = u;
                     
                     App.saveDB();
                     document.getElementById('prof-pass').value = '';
                     App.ui.showToast('Profil berhasil diupdate!');
-                    App.client.render();
-                },
-
-                cancel(id) {
-                    if(confirm('Yakin membatalkan booking ini?')) {
-                        const b = App.state.bookings.find(x => x.id === id);
-                        if(b) { b.status = 'Cancelled'; App.saveDB(); App.ui.showToast('Booking dibatalkan', 'info'); App.client.render(); }
-                    }
+                    this.render();
                 }
             },
 
-            // --- 5. ADMIN DASHBOARD LOGIC ---
             admin: {
                 render() {
                     document.getElementById('admin-name-display').innerText = App.state.currentUser.name;
@@ -1093,7 +1121,6 @@
                                     <button onclick="App.admin.updateStatus('${b.id}', 'Completed')" class="text-blue-400 hover:text-white p-1.5 transition rounded hover:bg-blue-500/20" title="Selesai"><i class="fas fa-flag-checkered"></i></button>
                                 `;
                             }
-                            // Reschedule available for pending/approved
                             if(b.status === 'Pending' || b.status === 'Approved') {
                                 actions += `<button onclick="App.admin.openReschedule('${b.id}')" class="text-yellow-400 hover:text-white p-1.5 transition rounded hover:bg-yellow-500/20 ml-1" title="Reschedule"><i class="fas fa-calendar-alt"></i></button>`;
                             }
@@ -1133,10 +1160,10 @@
                     clients.forEach(c => {
                         tbody.innerHTML += `
                             <tr class="hover:bg-white/[0.02]">
-                                <td class="py-3 text-white font-medium flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-neutral-800 text-neon flex items-center justify-center text-xs">${c.name[0]}</div> ${c.name}</td>
-                                <td class="py-3 text-gray-400">${c.email}</td>
-                                <td class="py-3 text-gray-400">${c.phone}</td>
-                                <td class="py-3 text-gray-500 text-xs">${new Date(c.createdAt).toLocaleDateString('id-ID')}</td>
+                                <td class="py-3 px-2 text-white font-medium flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-neutral-800 text-neon flex items-center justify-center text-xs">${c.name[0]}</div> ${c.name}</td>
+                                <td class="py-3 px-2 text-gray-400">${c.email}</td>
+                                <td class="py-3 px-2 text-gray-400">${c.phone}</td>
+                                <td class="py-3 px-2 text-gray-500 text-xs">${new Date(c.createdAt).toLocaleDateString('id-ID')}</td>
                             </tr>
                         `;
                     });
@@ -1168,14 +1195,16 @@
                 },
 
                 updateStatus(id, stat) {
-                    const b = App.state.bookings.find(x => x.id === id);
-                    if(b) {
-                        b.status = stat;
-                        App.saveDB();
-                        App.ui.showToast(`Sesi ditandai sebagai ${stat}`);
-                        this.renderStats();
-                        this.renderBookings();
-                    }
+                    App.ui.confirm(`Ubah status sesi menjadi ${stat}?`, () => {
+                        const b = App.state.bookings.find(x => x.id === id);
+                        if(b) {
+                            b.status = stat;
+                            App.saveDB();
+                            App.ui.showToast(`Sesi berhasil ditandai sebagai ${stat}`);
+                            this.renderStats();
+                            this.renderBookings();
+                        }
+                    });
                 },
 
                 openReschedule(id) {
@@ -1185,14 +1214,31 @@
                     document.getElementById('reschedule-client-name').innerText = `Client: ${b.clientName} | Current: ${b.date} ${b.time}`;
                     document.getElementById('reschedule-date').min = new Date().toISOString().split('T')[0];
                     document.getElementById('reschedule-date').value = b.date;
-                    updateRescheduleTimes(b.time); // populate times
-                    openModal('reschedule-modal');
+                    App.ui.updateRescheduleTimes(b.time);
+                    App.ui.openModal('reschedule-modal');
+                },
+
+                saveReschedule(e) {
+                    e.preventDefault();
+                    const id = document.getElementById('reschedule-booking-id').value;
+                    const date = document.getElementById('reschedule-date').value;
+                    const time = document.getElementById('reschedule-time').value;
+                    if(!time) return App.ui.showToast('Pilih jam yang valid', 'error');
+
+                    const b = App.state.bookings.find(x => x.id === id);
+                    if(b) {
+                        b.date = date; b.time = time;
+                        if(b.status === 'Pending') b.status = 'Approved'; 
+                        App.saveDB();
+                        App.ui.closeModal('reschedule-modal');
+                        App.ui.showToast('Jadwal berhasil di-reschedule');
+                        this.renderBookings();
+                    }
                 },
 
                 exportCSV() {
                     let csv = "ID,Client Name,Phone,Date,Time,Program,Duration,Status,Notes\n";
                     App.state.bookings.forEach(b => {
-                        // Escape quotes and commas in notes
                         const safeNotes = b.notes ? `"${b.notes.replace(/"/g, '""')}"` : "";
                         csv += `${b.id},${b.clientName},${b.clientPhone},${b.date},${b.time},${b.type},${b.duration},${b.status},${safeNotes}\n`;
                     });
@@ -1211,124 +1257,12 @@
             }
         };
 
-        // --- STREAMING_CHUNK:Global Helpers & Event Listeners ---
-        function navigateTo(hash) { window.location.hash = hash; }
-        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('hidden'); }
-        function toggleSidebar(id) {
-            const sb = document.getElementById(id);
-            sb.classList.toggle('-translate-x-full');
+        // Initialize Application safely
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => App.init());
+        } else {
+            App.init(); // Eksekusi langsung jika DOM sudah siap (penting untuk pratinjau)
         }
-        
-        function fillLogin(email) {
-            document.getElementById('login-email').value = email;
-            document.getElementById('login-pass').value = 'password';
-        }
-
-        // Modal Management
-        function openModal(id) {
-            const m = document.getElementById(id);
-            const c = document.getElementById(`${id}-content`);
-            if(id === 'booking-modal') {
-                document.getElementById('book-date').min = new Date().toISOString().split('T')[0];
-                document.getElementById('book-time').innerHTML = '<option value="">Pilih Tanggal Dulu</option>';
-            }
-            m.classList.remove('hidden'); m.classList.add('flex');
-            setTimeout(() => { c.classList.remove('scale-95', 'opacity-0'); c.classList.add('scale-100', 'opacity-100'); }, 10);
-        }
-
-        function closeModal(id) {
-            const m = document.getElementById(id);
-            const c = document.getElementById(`${id}-content`);
-            c.classList.remove('scale-100', 'opacity-100'); c.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 300);
-        }
-
-        // Booking Logic (Prevent Double Booking)
-        function getAvailableTimes(dateStr, excludeBookingId = null) {
-            if(!dateStr) return [];
-            // Get all booked times for that date that are NOT cancelled
-            const booked = App.state.bookings
-                .filter(b => b.date === dateStr && b.status !== 'Cancelled' && b.id !== excludeBookingId)
-                .map(b => b.time);
-            
-            // Return only hours from settings that are not booked
-            return App.state.settings.availableHours.filter(h => !booked.includes(h));
-        }
-
-        function updateAvailableTimes() {
-            const date = document.getElementById('book-date').value;
-            const sel = document.getElementById('book-time');
-            const avail = getAvailableTimes(date);
-            
-            sel.innerHTML = '<option value="">Pilih Jam</option>';
-            if(avail.length === 0) {
-                sel.innerHTML = '<option value="">Jadwal Penuh / Tidak Tersedia</option>';
-            } else {
-                avail.forEach(h => sel.innerHTML += `<option value="${h}">${h}</option>`);
-            }
-        }
-
-        function updateRescheduleTimes(currentTime = null) {
-            const date = document.getElementById('reschedule-date').value;
-            const bId = document.getElementById('reschedule-booking-id').value;
-            const sel = document.getElementById('reschedule-time');
-            const avail = getAvailableTimes(date, bId);
-            
-            sel.innerHTML = '<option value="">Pilih Jam</option>';
-            avail.forEach(h => {
-                const isSelected = h === currentTime ? 'selected' : '';
-                sel.innerHTML += `<option value="${h}" ${isSelected}>${h}</option>`;
-            });
-        }
-
-        // Form Submissions
-        document.getElementById('booking-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const date = document.getElementById('book-date').value;
-            const time = document.getElementById('book-time').value;
-            if(!time) return App.ui.showToast('Pilih jam yang valid', 'error');
-
-            const u = App.state.currentUser;
-            const newB = {
-                id: 'b_' + Date.now(),
-                clientId: u.id, clientName: u.name, clientPhone: u.phone,
-                date, time,
-                type: document.getElementById('book-type').value,
-                duration: document.getElementById('book-duration').value,
-                notes: document.getElementById('book-notes').value,
-                status: 'Pending',
-                createdAt: new Date().toISOString()
-            };
-            App.state.bookings.push(newB);
-            App.saveDB();
-            closeModal('booking-modal');
-            App.ui.showToast('Booking berhasil diajukan! Menunggu approval.');
-            document.getElementById('booking-form').reset();
-            App.client.render();
-        });
-
-        document.getElementById('reschedule-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const id = document.getElementById('reschedule-booking-id').value;
-            const date = document.getElementById('reschedule-date').value;
-            const time = document.getElementById('reschedule-time').value;
-            if(!time) return App.ui.showToast('Pilih jam yang valid', 'error');
-
-            const b = App.state.bookings.find(x => x.id === id);
-            if(b) {
-                b.date = date; b.time = time;
-                // auto approve reschedule
-                if(b.status === 'Pending') b.status = 'Approved'; 
-                App.saveDB();
-                closeModal('reschedule-modal');
-                App.ui.showToast('Jadwal berhasil di-reschedule');
-                App.admin.render();
-            }
-        });
-
-        // Initialize Application
-        window.onload = () => App.init();
-
     </script>
 </body>
 </html>
